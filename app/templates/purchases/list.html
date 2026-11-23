@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Purchases & Material Receipts — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Purchases & Material Receipts</h3>
+    <p class="text-muted small mb-0">Record raw materials & packaging inward, automatically updating stock and Weighted Average Cost (WAC).</p>
+  </div>
+  {% if current_user.has_role('admin', 'owner', 'production') %}
+  <a href="{{ url_for('purchases.new_purchase') }}" class="btn btn-primary fw-semibold">
+    <i class="bi bi-plus-circle"></i> Inward New Purchase
+  </a>
+  {% endif %}
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Purchase ID</th>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Supplier Inv No</th>
+            <th>Materials Inward</th>
+            <th>Total Bill Amount</th>
+            <th>Recorded By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in purchases %}
+          <tr>
+            <td><code>#{{ p.id }}</code></td>
+            <td>{{ p.purchase_date.strftime('%d-%b-%Y') }}</td>
+            <td><strong>{{ p.supplier.name }}</strong> ({{ p.supplier.state }})</td>
+            <td><code>{{ p.invoice_number or '—' }}</code></td>
+            <td>
+              <ul class="list-unstyled mb-0 small">
+                {% for item in p.items %}
+                <li>• {{ item.item_name }}: <strong>{{ item.quantity }} {{ item.unit }}</strong> @ {{ item.unit_rate|currency }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+            <td class="fw-bold text-primary">{{ p.total_amount|currency }}</td>
+            <td class="text-muted small">{{ p.created_by.full_name if p.created_by else 'Admin' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No purchases recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

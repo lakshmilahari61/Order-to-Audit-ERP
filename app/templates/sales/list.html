@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Orders — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Sales Orders Register</h3>
+    <p class="text-muted small mb-0">Track order submissions, admin approvals, stock allocations, and dispatch status.</p>
+  </div>
+  {% if current_user.has_role('salesman', 'admin', 'owner') %}
+  <a href="{{ url_for('sales.new_order') }}" class="btn btn-primary fw-semibold">
+    <i class="bi bi-cart-plus"></i> Place New Order
+  </a>
+  {% endif %}
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Order No</th>
+            <th>Date</th>
+            <th>Salesman</th>
+            <th>Customer</th>
+            <th>State</th>
+            <th>Taxable Value</th>
+            <th>GST Amount</th>
+            <th>Total Amount</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td><strong>{{ o.order_number }}</strong></td>
+            <td>{{ o.order_date.strftime('%d-%b-%Y') }}</td>
+            <td>{{ o.salesman.full_name if o.salesman else 'N/A' }}</td>
+            <td><strong>{{ o.customer.name }}</strong></td>
+            <td>{{ o.customer.state }}</td>
+            <td>{{ o.total_taxable_amount|currency }}</td>
+            <td>{{ o.total_gst_amount|currency }}</td>
+            <td class="fw-bold text-primary">{{ o.total_order_amount|currency }}</td>
+            <td>
+              {% if o.status == 'Submitted' %}
+              <span class="badge bg-warning text-dark">Submitted</span>
+              {% elif o.status == 'Approved' %}
+              <span class="badge bg-primary">Approved</span>
+              {% elif o.status == 'Invoiced' %}
+              <span class="badge bg-info text-dark">Invoiced</span>
+              {% elif o.status == 'Dispatched' %}
+              <span class="badge bg-success">Dispatched</span>
+              {% elif o.status == 'Rejected' %}
+              <span class="badge bg-danger">Rejected</span>
+              {% endif %}
+              
+              {% if o.shortage_quantity > 0 %}
+              <br/><small class="text-danger fw-semibold">Shortage: {{ o.shortage_quantity }} pkts</small>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if current_user.has_role('admin', 'owner') and o.status == 'Submitted' %}
+              <a href="{{ url_for('sales.review_order', order_id=o.id) }}" class="btn btn-sm btn-outline-primary">
+                Review & Approve
+              </a>
+              {% elif o.invoice %}
+              <a href="{{ url_for('billing.view_invoice', invoice_id=o.invoice.id) }}" class="btn btn-sm btn-outline-secondary">
+                View Invoice
+              </a>
+              {% else %}
+              <span class="text-muted small">Processed</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-center text-muted py-4">No sales orders found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Execute Production Batch — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-11">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-success text-white py-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-gear-wide-connected"></i> BOM-Based Production Execution</h5>
+        <small class="text-light">Issues materials atomically, updates finished goods, and calculates cost per packet & variances</small>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('production.new_run') }}" id="prodForm">
+          <!-- Header Inputs -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Finished Product <span class="text-danger">*</span></label>
+              <select name="product_id" id="productSelect" class="form-select" required onchange="loadBOMPlan()">
+                <option value="">-- Choose Product --</option>
+                {% for p in products %}
+                <option value="{{ p.id }}">{{ p.name }} ({{ p.pack_size }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Batch Number <span class="text-danger">*</span></label>
+              <input type="text" name="batch_number" class="form-control" value="{{ suggested_batch_no }}" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Production Date</label>
+              <input type="date" name="production_date" class="form-control" value="{{ today_date }}" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Batch Quantity (Multiplier)</label>
+              <input type="number" name="batch_quantity" id="batchQtyInput" class="form-control" value="1.00" step="0.5" min="0.5" required onchange="loadBOMPlan()">
+            </div>
+          </div>
+
+          <input type="hidden" name="bom_id" id="bomIdInput" value="">
+
+          <!-- BOM Planned vs Actual Materials Section -->
+          <div class="card border mb-4">
+            <div class="card-header bg-light py-2 fw-bold d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-list-check"></i> Raw Materials & Packaging Issues</span>
+              <span id="expectedOutputBadge" class="badge bg-secondary">Expected Output: 0 packets</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0" id="materialsTable">
+                  <thead class="table-light small">
+                    <tr>
+                      <th style="width: 15%;">Type</th>
+                      <th style="width: 30%;">Material Item</th>
+                      <th style="width: 15%;">Planned Consumption</th>
+                      <th style="width: 20%;">Actual Issued / Consumed <span class="text-danger">*</span></th>
+                      <th style="width: 10%;">Unit</th>
+                      <th style="width: 10%;">Rate (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="materialsBody">
+                    <tr>
+                      <td colspan="6" class="text-center text-muted py-3">Please select a product above to load its BOM specifications.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Production Outputs & Scrap -->
+          <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Batch Outputs & Wastages</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Actual Good Output (Packets) <span class="text-danger">*</span></label>
+              <input type="number" name="actual_good_output" class="form-control form-control-lg border-success fw-bold text-success" step="1" min="0" required placeholder="e.g. 188">
+              <small class="text-muted">Finished goods added to inventory ledger</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Damaged Packaging (Pouches)</label>
+              <input type="number" name="damaged_packaging" class="form-control" step="1" min="0" value="0" placeholder="e.g. 6">
+              <small class="text-muted">Pouches scrapped during packing</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Scrap / Dough Wastage (kg)</label>
+              <input type="number" name="scrap_wastage" class="form-control" step="0.01" min="0" value="0.00" placeholder="0.00">
+              <small class="text-muted">Unsalvageable process scrap</small>
+            </div>
+          </div>
+
+          <!-- Direct Overheads for Costing -->
+          <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Batch Direct Overheads (For Unit Cost Allocation)</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Direct Labour Charges (₹)</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" name="labour_expense" class="form-control" step="0.01" min="0" value="0.00" placeholder="e.g. 1200.00">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Power & Gas Fuel Expense (₹)</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" name="power_gas_expense" class="form-control" step="0.01" min="0" value="0.00" placeholder="e.g. 600.00">
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Production Notes</label>
+            <input type="text" name="notes" class="form-control" placeholder="Optional batch notes or supervisor remarks">
+          </div>
+
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('production.index') }}" class="btn btn-light border">Cancel</a>
+            <button type="submit" class="btn btn-success px-4 py-2 fw-semibold">
+              <i class="bi bi-check2-circle"></i> Complete Run & Commit to Ledger
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function loadBOMPlan() {
+    const productId = document.getElementById('productSelect').value;
+    const batchQty = document.getElementById('batchQtyInput').value || '1.00';
+    if (!productId) return;
+
+    fetch(`/production/api/bom-plan/${productId}?batches=${batchQty}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        document.getElementById('bomIdInput').value = data.bom_id;
+        document.getElementById('expectedOutputBadge').textContent = `Expected Yield: ${data.expected_yield} packets`;
+
+        const body = document.getElementById('materialsBody');
+        body.innerHTML = '';
+
+        data.items.forEach(item => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>
+              <span class="badge ${item.material_type === 'RAW_MATERIAL' ? 'bg-primary' : 'bg-info text-dark'}">
+                ${item.material_type === 'RAW_MATERIAL' ? 'Raw Material' : 'Packaging'}
+              </span>
+              <input type="hidden" name="material_type[]" value="${item.material_type}">
+              <input type="hidden" name="raw_material_id[]" value="${item.raw_material_id || ''}">
+              <input type="hidden" name="packaging_material_id[]" value="${item.packaging_material_id || ''}">
+            </td>
+            <td><strong>${item.name}</strong></td>
+            <td>
+              <input type="text" name="planned_qty[]" class="form-control bg-light" value="${item.planned_qty}" readonly>
+            </td>
+            <td>
+              <input type="number" name="actual_qty[]" class="form-control border-primary fw-semibold" step="0.0001" min="0.0001" value="${item.planned_qty}" required>
+            </td>
+            <td>
+              <input type="text" name="unit[]" class="form-control bg-light" value="${item.unit}" readonly>
+            </td>
+            <td>₹${item.rate.toFixed(2)}</td>
+          `;
+          body.appendChild(row);
+        });
+      })
+      .catch(err => console.error("Error loading BOM:", err));
+  }
+</script>
+{% endblock %}

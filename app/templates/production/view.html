@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Batch {{ run.batch_number }} Breakdown — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Batch Performance & Costing: {{ run.batch_number }}</h3>
+    <p class="text-muted small mb-0">Production Date: {{ run.production_date.strftime('%d-%b-%Y') }} | Finished Product: <strong>{{ run.product.name }}</strong></p>
+  </div>
+  <a href="{{ url_for('production.index') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> All Production Runs
+  </a>
+</div>
+
+<!-- Yield Variance Alert Banner if applicable -->
+{% if run.yield_variance_pct > 3.0 or run.yield_variance_pct < -3.0 %}
+<div class="alert alert-danger shadow-sm border-danger d-flex align-items-center gap-3 mb-4">
+  <i class="bi bi-exclamation-triangle-fill fs-2 text-danger"></i>
+  <div>
+    <h5 class="fw-bold mb-1 text-danger">Yield Variance Alert: {{ run.yield_variance_pct }}%</h5>
+    <p class="mb-0 small text-dark">
+      Expected Output was <strong>{{ run.expected_output }} packets</strong>, but actual good output achieved was <strong>{{ run.actual_good_output }} packets</strong> (Variance exceeds ±3% threshold).
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Key Metrics Row -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card border-start border-4 border-success">
+      <div class="kpi-label">Good Output</div>
+      <div class="kpi-value text-success">{{ run.actual_good_output }} <span class="fs-6 fw-normal text-muted">pkts</span></div>
+      <small class="text-muted">Expected: {{ run.expected_output }} pkts</small>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card border-start border-4 border-warning">
+      <div class="kpi-label">Damaged Packaging</div>
+      <div class="kpi-value text-warning">{{ run.damaged_packaging }} <span class="fs-6 fw-normal text-muted">pcs</span></div>
+      <small class="text-muted">Scrap: {{ run.scrap_wastage }} kg</small>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card border-start border-4 border-primary">
+      <div class="kpi-label">Total Batch Cost</div>
+      <div class="kpi-value text-primary">{{ run.total_production_cost|currency }}</div>
+      <small class="text-muted">Materials + Overheads</small>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="kpi-card border-start border-4 border-dark">
+      <div class="kpi-label">Cost per Packet</div>
+      <div class="kpi-value text-dark">{{ run.cost_per_packet|currency }}</div>
+      <small class="text-muted">Selling Price: {{ run.product.selling_price|currency }}</small>
+    </div>
+  </div>
+</div>
+
+<!-- Material Consumption Variance Breakdown Table -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 fw-bold">
+    <i class="bi bi-table text-primary"></i> Material Consumption & Variance Breakdown
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Category</th>
+            <th>Material Item</th>
+            <th>Planned Qty</th>
+            <th>Actual Qty</th>
+            <th>Variance %</th>
+            <th>Valuation Rate</th>
+            <th>Total Cost</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in run.material_issues %}
+          <tr>
+            <td>
+              <span class="badge {{ 'bg-primary' if issue.material_type == 'RAW_MATERIAL' else 'bg-info text-dark' }}">
+                {{ 'Raw Material' if issue.material_type == 'RAW_MATERIAL' else 'Packaging' }}
+              </span>
+            </td>
+            <td><strong>{{ issue.item_name }}</strong></td>
+            <td>{{ issue.planned_qty }} {{ issue.unit }}</td>
+            <td class="fw-bold">{{ issue.actual_qty }} {{ issue.unit }}</td>
+            <td>
+              {% if issue.variance_pct > 3.0 or issue.variance_pct < -3.0 %}
+              <span class="badge bg-danger-subtle text-danger border border-danger">
+                {{ issue.variance_pct }}% ALERT
+              </span>
+              {% else %}
+              <span class="badge bg-success-subtle text-success border border-success">
+                {{ issue.variance_pct }}%
+              </span>
+              {% endif %}
+            </td>
+            <td>{{ issue.unit_rate|currency }}</td>
+            <td class="fw-bold text-dark">{{ issue.total_cost|currency }}</td>
+            <td>
+              {% if issue.variance_pct > 3.0 %}
+              <span class="text-danger small fw-semibold">Over-consumed</span>
+              {% elif issue.variance_pct < -3.0 %}
+              <span class="text-warning small fw-semibold">Under-consumed</span>
+              {% else %}
+              <span class="text-success small fw-semibold">Within ±3%</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Costing Summary Table -->
+<div class="row justify-content-end">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-light py-2 fw-bold">Batch Costing Summary</div>
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between mb-2 small">
+          <span>Raw Materials Cost:</span>
+          <span class="fw-bold">{{ run.total_material_cost|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2 small">
+          <span>Packaging Materials Cost:</span>
+          <span class="fw-bold">{{ run.total_packaging_cost|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2 small">
+          <span>Direct Labour Expense:</span>
+          <span class="fw-bold">{{ run.labour_expense|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2 small">
+          <span>Gas & Power Fuel Expense:</span>
+          <span class="fw-bold">{{ run.power_gas_expense|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between border-top pt-2 mt-2">
+          <span class="fw-bold">Total Production Cost:</span>
+          <span class="fw-bold text-primary">{{ run.total_production_cost|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between bg-light p-2 rounded mt-2">
+          <span class="fw-bold text-success">Cost per Good Packet:</span>
+          <span class="fw-bold text-success fs-6">{{ run.cost_per_packet|currency }}</span>
+        </div>
+        {% set margin = run.product.selling_price - run.cost_per_packet %}
+        <div class="d-flex justify-content-between mt-2 small text-muted">
+          <span>Approximate Unit Gross Margin:</span>
+          <span class="fw-bold text-dark">{{ margin|currency }} ({{ (margin / run.product.selling_price * 100)|round(1) }}%)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

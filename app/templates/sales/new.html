@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}New Sales Order — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white py-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-cart-plus-fill"></i> Create Sales Order</h5>
+        <small class="text-light">Select customer and enter product quantities</small>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('sales.new_order') }}" id="orderForm">
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Select Customer <span class="text-danger">*</span></label>
+              <select name="customer_id" class="form-select" required>
+                <option value="">-- Choose Customer --</option>
+                {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.state }} - {{ c.customer_type }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Order Notes (Optional)</label>
+              <input type="text" name="notes" class="form-control" placeholder="e.g. Urgent dispatch requested">
+            </div>
+          </div>
+
+          <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Order Line Items</h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle" id="itemsTable">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 45%;">Product</th>
+                  <th style="width: 20%;">Price (₹)</th>
+                  <th style="width: 25%;">Quantity</th>
+                  <th style="width: 10%;"></th>
+                </tr>
+              </thead>
+              <tbody id="itemsBody">
+                <tr>
+                  <td>
+                    <select name="product_id[]" class="form-select product-select" required onchange="updatePrice(this)">
+                      <option value="">-- Select Product --</option>
+                      {% for p in products %}
+                      <option value="{{ p.id }}" data-price="{{ p.selling_price }}" data-stock="{{ stock_map.get(p.id, 0) }}">
+                        {{ p.name }} (Available: {{ stock_map.get(p.id, 0)|int }} {{ p.unit }})
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="text" class="form-control price-input bg-light" readonly value="0.00">
+                  </td>
+                  <td>
+                    <input type="number" name="quantity[]" class="form-control qty-input" min="1" step="1" required placeholder="Packets">
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addRow()">
+              <i class="bi bi-plus"></i> Add Another Product
+            </button>
+          </div>
+
+          <div class="d-flex gap-2 justify-content-end">
+            <a href="{{ url_for('sales.index') }}" class="btn btn-light border">Cancel</a>
+            <button type="submit" class="btn btn-primary px-4 fw-semibold">
+              <i class="bi bi-check-circle-fill"></i> Submit Sales Order
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function updatePrice(selectElem) {
+    const selectedOption = selectElem.options[selectElem.selectedIndex];
+    const price = selectedOption.getAttribute('data-price') || '0.00';
+    const row = selectElem.closest('tr');
+    row.querySelector('.price-input').value = price;
+  }
+
+  function addRow() {
+    const body = document.getElementById('itemsBody');
+    const firstRow = body.querySelector('tr');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelector('.qty-input').value = '';
+    newRow.querySelector('.price-input').value = '0.00';
+    newRow.querySelector('.product-select').selectedIndex = 0;
+    body.appendChild(newRow);
+  }
+
+  function removeRow(btn) {
+    const body = document.getElementById('itemsBody');
+    if (body.querySelectorAll('tr').length > 1) {
+      btn.closest('tr').remove();
+    }
+  }
+</script>
+{% endblock %}

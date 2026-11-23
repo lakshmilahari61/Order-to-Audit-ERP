@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Tax Invoice {{ invoice.invoice_number }} — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">GST Tax Invoice: {{ invoice.invoice_number }}</h3>
+    <p class="text-muted small mb-0">Generated under Section 31 of CGST Act (Prototype Demonstration).</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('billing.download_pdf', invoice_id=invoice.id) }}" class="btn btn-danger fw-semibold shadow-sm">
+      <i class="bi bi-file-earmark-pdf-fill"></i> Download Official PDF
+    </a>
+    {% if not invoice.dispatches %}
+    <a href="{{ url_for('dispatch.record_dispatch', invoice_id=invoice.id) }}" class="btn btn-success fw-semibold">
+      <i class="bi bi-truck"></i> Record Dispatch
+    </a>
+    {% endif %}
+    {% if invoice.get_outstanding() > 0 %}
+    <a href="{{ url_for('payments.new_payment') }}" class="btn btn-primary fw-semibold">
+      <i class="bi bi-cash"></i> Record Payment
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-4">
+    <!-- Invoice Header -->
+    <div class="row g-3 pb-3 border-bottom mb-3">
+      <div class="col-md-6">
+        <h5 class="fw-bold text-dark mb-1">{{ factory_name }}</h5>
+        <div class="small text-muted">
+          14 Industrial Estate, Thuvakudi, Tiruchirappalli, Tamil Nadu - 620015<br/>
+          GSTIN: <strong>{{ factory_gstin }}</strong> | State: <strong>{{ factory_state }}</strong>
+        </div>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <h4 class="fw-bold text-primary mb-0">{{ invoice.invoice_number }}</h4>
+        <div class="small text-muted">
+          Date: <strong>{{ invoice.invoice_date.strftime('%d-%b-%Y') }}</strong><br/>
+          Status: <span class="badge bg-secondary">{{ invoice.status }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bill To Customer Snapshot -->
+    <div class="row g-3 pb-3 border-bottom mb-4">
+      <div class="col-md-6">
+        <small class="text-muted text-uppercase fw-bold">Billed To (Customer):</small>
+        <h6 class="fw-bold text-dark mt-1 mb-0">{{ invoice.customer_name }}</h6>
+        <div class="small text-muted">
+          {{ invoice.customer_address or 'Address on file' }}<br/>
+          State: <strong>{{ invoice.customer_state }}</strong> | GSTIN: <strong>{{ invoice.customer_gstin }}</strong>
+        </div>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <small class="text-muted text-uppercase fw-bold">Order Reference:</small>
+        <div class="fw-semibold">{{ invoice.sales_order.order_number if invoice.sales_order else 'Direct' }}</div>
+        <small class="text-secondary">Place of Supply: {{ invoice.customer_state }}</small>
+      </div>
+    </div>
+
+    <!-- Line Items Table -->
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered align-middle mb-0">
+        <thead class="table-dark small">
+          <tr>
+            <th>#</th>
+            <th>Description of Goods</th>
+            <th>HSN Code</th>
+            <th>Quantity</th>
+            <th>Rate (₹)</th>
+            <th>Taxable Value (₹)</th>
+            <th>CGST (₹)</th>
+            <th>SGST (₹)</th>
+            <th>IGST (₹)</th>
+            <th class="text-end">Total (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in invoice.items %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td><strong>{{ item.product_name }}</strong></td>
+            <td><code>{{ item.hsn_code }}</code></td>
+            <td>{{ item.quantity }} pkts</td>
+            <td>{{ item.unit_price|currency }}</td>
+            <td>{{ item.taxable_amount|currency }}</td>
+            <td>{{ item.cgst_amount|currency }}</td>
+            <td>{{ item.sgst_amount|currency }}</td>
+            <td>{{ item.igst_amount|currency }}</td>
+            <td class="text-end fw-bold">{{ item.total_amount|currency }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals Summary & Outstanding Box -->
+    <div class="row justify-content-end">
+      <div class="col-md-5">
+        <div class="bg-light p-3 rounded border">
+          <div class="d-flex justify-content-between mb-1 small">
+            <span>Taxable Amount:</span>
+            <span class="fw-bold">{{ invoice.taxable_amount|currency }}</span>
+          </div>
+          {% if invoice.cgst_amount > 0 %}
+          <div class="d-flex justify-content-between mb-1 small">
+            <span>CGST (2.5%):</span>
+            <span class="fw-bold">{{ invoice.cgst_amount|currency }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-1 small">
+            <span>SGST (2.5%):</span>
+            <span class="fw-bold">{{ invoice.sgst_amount|currency }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.igst_amount > 0 %}
+          <div class="d-flex justify-content-between mb-1 small">
+            <span>IGST (5.0%):</span>
+            <span class="fw-bold">{{ invoice.igst_amount|currency }}</span>
+          </div>
+          {% endif %}
+          <div class="d-flex justify-content-between border-top pt-2 mt-2">
+            <span class="fs-6 fw-bold">Grand Total:</span>
+            <span class="fs-6 fw-bold text-dark">{{ invoice.total_amount|currency }}</span>
+          </div>
+          <div class="d-flex justify-content-between text-success mt-2 small">
+            <span>Payments Received:</span>
+            <span class="fw-bold">{{ invoice.get_paid_amount()|currency }}</span>
+          </div>
+          <div class="d-flex justify-content-between text-danger border-top pt-2 mt-2">
+            <span class="fw-bold">Outstanding Balance:</span>
+            <span class="fw-bold fs-6">{{ invoice.get_outstanding()|currency }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

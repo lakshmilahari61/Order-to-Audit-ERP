@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Record Material Purchase — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white py-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-bag-plus"></i> Inward Material Purchase Entry</h5>
+        <small class="text-light">Auto-updates Weighted Average Cost (WAC) and adds stock to ledger</small>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('purchases.new_purchase') }}">
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
+              <select name="supplier_id" class="form-select" required>
+                <option value="">-- Choose Supplier --</option>
+                {% for s in suppliers %}
+                <option value="{{ s.id }}">{{ s.name }} ({{ s.state }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Supplier Invoice No</label>
+              <input type="text" name="invoice_number" class="form-control" placeholder="e.g. PUR-2026-001" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Purchase Date</label>
+              <input type="date" name="purchase_date" class="form-control" value="{{ today_date }}" required>
+            </div>
+          </div>
+
+          <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Materials Inward Items</h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle" id="purchaseTable">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 25%;">Category</th>
+                  <th style="width: 35%;">Item</th>
+                  <th style="width: 15%;">Quantity</th>
+                  <th style="width: 10%;">Unit</th>
+                  <th style="width: 15%;">Rate (₹)</th>
+                  <th style="width: 5%;"></th>
+                </tr>
+              </thead>
+              <tbody id="purchaseBody">
+                <tr>
+                  <td>
+                    <select name="material_type[]" class="form-select type-select" onchange="toggleItemSelect(this)">
+                      <option value="RAW_MATERIAL">Raw Material</option>
+                      <option value="PACKAGING">Packaging</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select name="item_id[]" class="form-select item-select" required onchange="setUnit(this)">
+                      <option value="">-- Select Material --</option>
+                      {% for rm in raw_materials %}
+                      <option value="{{ rm.id }}" data-type="RAW_MATERIAL" data-unit="{{ rm.unit }}">{{ rm.name }} ({{ rm.unit }})</option>
+                      {% endfor %}
+                      {% for pm in packaging_materials %}
+                      <option value="{{ pm.id }}" data-type="PACKAGING" data-unit="{{ pm.unit }}" style="display:none;">{{ pm.name }} ({{ pm.unit }})</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" name="quantity[]" class="form-control" step="0.01" min="0.01" required placeholder="Qty">
+                  </td>
+                  <td>
+                    <input type="text" name="unit[]" class="form-control unit-input bg-light" readonly value="kg">
+                  </td>
+                  <td>
+                    <input type="number" name="rate[]" class="form-control" step="0.01" min="0.01" required placeholder="Rate">
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mb-4">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addRow()">
+              <i class="bi bi-plus"></i> Add Another Material Line
+            </button>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Notes</label>
+            <input type="text" name="notes" class="form-control" placeholder="Optional purchase notes">
+          </div>
+
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('purchases.index') }}" class="btn btn-light border">Cancel</a>
+            <button type="submit" class="btn btn-primary px-4 fw-semibold">
+              <i class="bi bi-check-circle"></i> Save & Inward Materials
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function toggleItemSelect(typeSelect) {
+    const row = typeSelect.closest('tr');
+    const itemSelect = row.querySelector('.item-select');
+    const selectedType = typeSelect.value;
+    const options = itemSelect.options;
+
+    itemSelect.selectedIndex = 0;
+    for (let i = 1; i < options.length; i++) {
+      const opt = options[i];
+      if (opt.getAttribute('data-type') === selectedType) {
+        opt.style.display = 'block';
+      } else {
+        opt.style.display = 'none';
+      }
+    }
+  }
+
+  function setUnit(itemSelect) {
+    const selected = itemSelect.options[itemSelect.selectedIndex];
+    const unit = selected.getAttribute('data-unit') || '';
+    const row = itemSelect.closest('tr');
+    row.querySelector('.unit-input').value = unit;
+  }
+
+  function addRow() {
+    const body = document.getElementById('purchaseBody');
+    const firstRow = body.querySelector('tr');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input').forEach(i => { if (!i.classList.contains('unit-input')) i.value = ''; });
+    body.appendChild(newRow);
+  }
+
+  function removeRow(btn) {
+    const body = document.getElementById('purchaseBody');
+    if (body.querySelectorAll('tr').length > 1) {
+      btn.closest('tr').remove();
+    }
+  }
+</script>
+{% endblock %}

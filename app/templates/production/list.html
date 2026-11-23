@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Production Batches — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Production Batch Runs</h3>
+    <p class="text-muted small mb-0">Review completed manufacturing batches, yield percentages, overhead allocations, and unit costing.</p>
+  </div>
+  {% if current_user.has_role('production', 'admin', 'owner') %}
+  <a href="{{ url_for('production.new_run') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-play-circle-fill"></i> Execute New Batch
+  </a>
+  {% endif %}
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Batch No</th>
+            <th>Date</th>
+            <th>Product</th>
+            <th>Batches</th>
+            <th>Expected Output</th>
+            <th>Actual Output</th>
+            <th>Yield Var (%)</th>
+            <th>Total Batch Cost</th>
+            <th>Cost/Packet</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in runs %}
+          <tr>
+            <td><strong>{{ r.batch_number }}</strong></td>
+            <td>{{ r.production_date.strftime('%d-%b-%Y') }}</td>
+            <td><strong>{{ r.product.name }}</strong></td>
+            <td>{{ r.batch_quantity }}</td>
+            <td>{{ r.expected_output }} pkts</td>
+            <td class="fw-bold text-success">{{ r.actual_good_output }} pkts</td>
+            <td>
+              {% if r.yield_variance_pct > 3.0 or r.yield_variance_pct < -3.0 %}
+              <span class="badge bg-danger-subtle text-danger border border-danger">
+                {{ r.yield_variance_pct }}% ALERT
+              </span>
+              {% else %}
+              <span class="badge bg-success-subtle text-success border border-success">
+                {{ r.yield_variance_pct }}%
+              </span>
+              {% endif %}
+            </td>
+            <td>{{ r.total_production_cost|currency }}</td>
+            <td class="fw-bold text-primary">{{ r.cost_per_packet|currency }}</td>
+            <td class="text-end">
+              <a href="{{ url_for('production.view_run', run_id=r.id) }}" class="btn btn-sm btn-outline-primary">
+                View Breakdown
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-center text-muted py-4">No production runs recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

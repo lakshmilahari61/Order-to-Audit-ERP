@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Representative Portal — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Field Salesman Portal</h3>
+    <p class="text-muted small mb-0">Select customers, take orders, check catalog prices, and track order approvals.</p>
+  </div>
+  <a href="{{ url_for('sales.new_order') }}" class="btn btn-primary fw-semibold py-2 px-3 shadow-sm">
+    <i class="bi bi-cart-plus-fill"></i> Place New Order
+  </a>
+</div>
+
+<!-- Finished Goods Catalog with Live Available Stock -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 fw-bold">
+    <i class="bi bi-tags-fill text-primary"></i> Product Catalog & Live Stock Availability
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product Name</th>
+            <th>SKU</th>
+            <th>Pack Size</th>
+            <th>Selling Price (excl. Tax)</th>
+            <th>Available Factory Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in fg_summary %}
+          <tr>
+            <td><strong>{{ p.name }}</strong></td>
+            <td><code>{{ p.sku }}</code></td>
+            <td>{{ p.pack_size }}</td>
+            <td class="fw-bold text-primary">{{ p.selling_price|currency }}</td>
+            <td>
+              {% if p.stock > 0 %}
+              <span class="badge bg-success-subtle text-success border border-success fs-7">
+                {{ p.stock }} {{ p.unit }} Available
+              </span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger fs-7">
+                Out of Stock (0 {{ p.unit }})
+              </span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- My Order History -->
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-white py-3 fw-bold">
+    <i class="bi bi-clock-history text-secondary"></i> My Recent Order Submissions
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Order No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Order Amount</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ord in my_orders %}
+          <tr>
+            <td><strong>{{ ord.order_number }}</strong></td>
+            <td>{{ ord.order_date.strftime('%d-%b-%Y') }}</td>
+            <td>{{ ord.customer.name }} ({{ ord.customer.state }})</td>
+            <td class="fw-bold">{{ ord.total_order_amount|currency }}</td>
+            <td>
+              {% if ord.status == 'Submitted' %}
+              <span class="badge bg-warning text-dark">Submitted (Pending)</span>
+              {% elif ord.status == 'Approved' %}
+              <span class="badge bg-primary">Approved</span>
+              {% elif ord.status == 'Invoiced' %}
+              <span class="badge bg-info text-dark">Invoiced</span>
+              {% elif ord.status == 'Dispatched' %}
+              <span class="badge bg-success">Dispatched</span>
+              {% elif ord.status == 'Rejected' %}
+              <span class="badge bg-danger">Rejected</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if ord.shortage_quantity > 0 %}
+              <small class="text-danger fw-semibold">Shortage: {{ ord.shortage_quantity }} pkts</small>
+              {% else %}
+              <small class="text-muted">{{ ord.notes or '—' }}</small>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">No orders placed yet. Click "Place New Order" above.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

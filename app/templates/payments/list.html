@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Payments & Collections — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Customer Receivables & Payments</h3>
+    <p class="text-muted small mb-0">Record collections against invoices, monitor credit balances, and review collections history.</p>
+  </div>
+  {% if current_user.has_role('admin', 'owner') %}
+  <a href="{{ url_for('payments.new_payment') }}" class="btn btn-primary fw-semibold">
+    <i class="bi bi-cash-coin"></i> Record Payment Receipt
+  </a>
+  {% endif %}
+</div>
+
+<!-- Customer Outstanding Receivables Summary -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 fw-bold">
+    <i class="bi bi-person-lines-fill text-primary"></i> Customer Outstanding Balances
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Customer Name</th>
+            <th>Type</th>
+            <th>State</th>
+            <th>Total Invoiced</th>
+            <th>Total Collected</th>
+            <th>Outstanding Balance</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in receivables_summary %}
+          <tr>
+            <td><strong>{{ r.customer_name }}</strong></td>
+            <td>{{ r.customer_type }}</td>
+            <td>{{ r.state }}</td>
+            <td>{{ r.invoiced|currency }}</td>
+            <td class="text-success fw-semibold">{{ r.paid|currency }}</td>
+            <td>
+              {% if r.outstanding > 0 %}
+              <span class="badge bg-danger-subtle text-danger border border-danger fs-7">
+                {{ r.outstanding|currency }} Overdue
+              </span>
+              {% else %}
+              <span class="badge bg-success-subtle text-success border border-success fs-7">
+                Fully Settled
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if r.outstanding > 0 and current_user.has_role('admin', 'owner') %}
+              <a href="{{ url_for('payments.new_payment') }}?customer_id={{ r.customer_id }}" class="btn btn-sm btn-outline-primary">
+                Record Payment
+              </a>
+              {% else %}
+              <span class="text-muted small">No balance</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Collections History Register -->
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-white py-3 fw-bold">
+    <i class="bi bi-clock-history text-secondary"></i> Collections Transaction Register
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>Payment ID</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Invoice Ref</th>
+            <th>Payment Mode</th>
+            <th>Reference / UTR No</th>
+            <th>Amount Collected</th>
+            <th>Recorded By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td><code>#{{ p.id }}</code></td>
+            <td>{{ p.payment_date.strftime('%d-%b-%Y') }}</td>
+            <td><strong>{{ p.customer.name }}</strong></td>
+            <td>{{ p.invoice.invoice_number if p.invoice else 'General On-Account' }}</td>
+            <td><span class="badge bg-light text-dark border">{{ p.payment_mode }}</span></td>
+            <td><code>{{ p.reference_number or '—' }}</code></td>
+            <td class="fw-bold text-success fs-7">{{ p.amount_received|currency }}</td>
+            <td class="text-muted">{{ p.created_by.full_name if p.created_by else 'Admin' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No payments recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

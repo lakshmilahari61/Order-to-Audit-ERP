@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Reports & Ledgers — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Financial & Inventory Audit Reports</h3>
+    <p class="text-muted small mb-0">Statutory registers, tax reconciliations, production costings, and immutable stock movement ledgers.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.export_csv', report_type=report_type, start_date=start_date, end_date=end_date) }}" class="btn btn-outline-secondary">
+      <i class="bi bi-filetype-csv"></i> Export CSV
+    </a>
+    <a href="{{ url_for('reports.export_excel', report_type=report_type, start_date=start_date, end_date=end_date) }}" class="btn btn-success fw-semibold shadow-sm">
+      <i class="bi bi-file-earmark-excel-fill"></i> Export Excel (.xlsx)
+    </a>
+  </div>
+</div>
+
+<!-- Filter Form & Report Type Selector -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('reports.index') }}" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold small">Select Report Type</label>
+        <select name="type" class="form-select" onchange="this.form.submit()">
+          <optgroup label="Sales & GST">
+            <option value="sales_register" {% if report_type == 'sales_register' %}selected{% endif %}>1. Sales Register</option>
+            <option value="gst_summary" {% if report_type == 'gst_summary' %}selected{% endif %}>2. GST Statutory Summary</option>
+            <option value="customer_sales" {% if report_type == 'customer_sales' %}selected{% endif %}>3. Customer-wise Sales</option>
+            <option value="receivables" {% if report_type == 'receivables' %}selected{% endif %}>4. Outstanding Receivables</option>
+          </optgroup>
+          <optgroup label="Purchases & Inventory">
+            <option value="purchase_register" {% if report_type == 'purchase_register' %}selected{% endif %}>5. Purchase Register</option>
+            <option value="stock_ledger" {% if report_type == 'stock_ledger' %}selected{% endif %}>6. Stock Movement Ledger (Audit Trail)</option>
+            <option value="raw_materials_stock" {% if report_type == 'raw_materials_stock' %}selected{% endif %}>7. Raw Material Stock (WAC Valuation)</option>
+            <option value="packaging_stock" {% if report_type == 'packaging_stock' %}selected{% endif %}>8. Packaging Stock Summary</option>
+            <option value="finished_goods_stock" {% if report_type == 'finished_goods_stock' %}selected{% endif %}>9. Finished Goods Stock Summary</option>
+          </optgroup>
+          <optgroup label="Manufacturing & Costing">
+            <option value="production_costing" {% if report_type == 'production_costing' %}selected{% endif %}>10. Production Run & Costing Report</option>
+            <option value="consumption_variance" {% if report_type == 'consumption_variance' %}selected{% endif %}>11. Material Consumption Variances</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold small">From Date</label>
+        <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold small">To Date</label>
+        <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-filter"></i> Apply Filter
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Summary Card if GST Summary -->
+{% if summary_data %}
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-dark text-white py-3 fw-bold">
+    <i class="bi bi-calculator"></i> GST Statutory Reconciliation Breakdown
+  </div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded border">
+          <small class="text-muted text-uppercase fw-bold">Taxable Turnover</small>
+          <h4 class="fw-bold text-dark mt-1 mb-0">{{ summary_data.total_taxable|currency }}</h4>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded border">
+          <small class="text-muted text-uppercase fw-bold">CGST (2.5%)</small>
+          <h4 class="fw-bold text-primary mt-1 mb-0">{{ summary_data.total_cgst|currency }}</h4>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded border">
+          <small class="text-muted text-uppercase fw-bold">SGST (2.5%)</small>
+          <h4 class="fw-bold text-info mt-1 mb-0">{{ summary_data.total_sgst|currency }}</h4>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded border">
+          <small class="text-muted text-uppercase fw-bold">IGST (5.0%)</small>
+          <h4 class="fw-bold text-success mt-1 mb-0">{{ summary_data.total_igst|currency }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Dynamic Report Data Table -->
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-white py-3 fw-bold text-uppercase small border-bottom">
+    <i class="bi bi-table text-primary"></i> Data Grid: {{ report_type.replace('_', ' ').title() }} ({{ report_data|length }} records)
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      {% if report_data %}
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            {% for key in report_data[0].keys() %}
+            <th>{{ key }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report_data %}
+          <tr>
+            {% for val in row.values() %}
+            <td>
+              {% if val is boolean %}
+                {% if val %}
+                <span class="badge bg-danger">ALERT</span>
+                {% else %}
+                <span class="badge bg-success">OK</span>
+                {% endif %}
+              {% elif val is number and ('₹' in val|string or 'cost' in val|string) %}
+                {{ val|currency }}
+              {% else %}
+                {{ val }}
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-center text-muted py-5">
+        No records found matching the specified report and date parameters.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

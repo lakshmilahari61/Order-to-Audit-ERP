@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Production Dashboard — {{ factory_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Production Supervisor Floor Control</h3>
+    <p class="text-muted small mb-0">Record BOM-driven production runs, track planned vs actual material usage, and monitor yield variance.</p>
+  </div>
+  <a href="{{ url_for('production.new_run') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-play-circle-fill"></i> Execute New Batch
+  </a>
+</div>
+
+{% if alerts %}
+<div class="alert alert-danger shadow-sm border-danger mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+    <strong class="fs-6">Live Variance Notifications (Exceeding Configured ±3% Tolerance)</strong>
+  </div>
+  <ul class="mb-0 small">
+    {% for a in alerts %}
+    <li><strong>{{ a.type }}</strong> (Batch: {{ a.batch }}): {{ a.msg }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Raw Materials & Packaging Floor Inventory -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-white py-3 fw-bold">
+        <i class="bi bi-archive-fill text-warning"></i> Raw Materials Available on Floor
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>Material</th>
+                <th>Category</th>
+                <th>Stock</th>
+                <th>WAC Rate</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rm in rm_summary %}
+              <tr>
+                <td><strong>{{ rm.name }}</strong></td>
+                <td>{{ rm.category }}</td>
+                <td class="fw-bold">{{ rm.stock }} {{ rm.unit }}</td>
+                <td>{{ rm.rate|currency }}</td>
+                <td>
+                  {% if rm.is_low_stock %}
+                  <span class="badge bg-danger">Low Stock (Reorder: {{ rm.reorder_level }})</span>
+                  {% else %}
+                  <span class="badge bg-success">Healthy</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-white py-3 fw-bold">
+        <i class="bi bi-box2 text-info"></i> Packaging Stock Available
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>Packaging Item</th>
+                <th>Stock</th>
+                <th>Rate / pc</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pm in pkg_summary %}
+              <tr>
+                <td><strong>{{ pm.name }}</strong></td>
+                <td class="fw-bold">{{ pm.stock }} {{ pm.unit }}</td>
+                <td>{{ pm.rate|currency }}</td>
+                <td>
+                  {% if pm.is_low_stock %}
+                  <span class="badge bg-danger">Low Stock (Reorder: {{ pm.reorder_level }})</span>
+                  {% else %}
+                  <span class="badge bg-success">Healthy</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Production Runs -->
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-bold"><i class="bi bi-clock-history"></i> Recent Manufacturing Batch Runs</span>
+    <a href="{{ url_for('production.index') }}" class="btn btn-sm btn-link text-decoration-none">View All Runs</a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>Batch No</th>
+            <th>Date</th>
+            <th>Product</th>
+            <th>Expected Out</th>
+            <th>Actual Good Out</th>
+            <th>Damaged Pouches</th>
+            <th>Yield Variance</th>
+            <th>Cost/Pkt</th>
+            <th class="text-end">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_runs %}
+          <tr>
+            <td><strong>{{ r.batch_number }}</strong></td>
+            <td>{{ r.production_date.strftime('%d-%b-%Y') }}</td>
+            <td>{{ r.product.name }}</td>
+            <td>{{ r.expected_output }} pkts</td>
+            <td class="fw-bold text-success">{{ r.actual_good_output }} pkts</td>
+            <td>
+              {% if r.damaged_packaging > 0 %}
+              <span class="text-danger fw-semibold">{{ r.damaged_packaging }} pcs</span>
+              {% else %}
+              <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.yield_variance_pct > 3.0 or r.yield_variance_pct < -3.0 %}
+              <span class="badge bg-danger-subtle text-danger border border-danger">
+                {{ r.yield_variance_pct }}%
+              </span>
+              {% else %}
+              <span class="badge bg-success-subtle text-success border border-success">
+                {{ r.yield_variance_pct }}%
+              </span>
+              {% endif %}
+            </td>
+            <td class="fw-bold">{{ r.cost_per_packet|currency }}</td>
+            <td class="text-end">
+              <a href="{{ url_for('production.view_run', run_id=r.id) }}" class="btn btn-sm btn-outline-secondary">
+                View Run
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" class="text-center text-muted py-4">No production runs recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
