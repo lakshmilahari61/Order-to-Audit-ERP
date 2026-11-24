@@ -159,7 +159,8 @@ class SalesService:
             'order': order,
             'is_feasible': feasible,
             'total_shortage': overall_shortage,
-            'items': items_detail
+            'items': items_detail,
+            'items_detail': items_detail
         }
 
     @staticmethod
